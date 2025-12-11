@@ -1,0 +1,181 @@
+---
+title: "Initial Data Wrangling"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Importing raw data:
+
+```{r}
+data_raw <- read_csv('data/analytic_data2022.csv', skip = 1)
+```
+
+Selecting the columns we are actually interested in:
+
+```{r}
+data_filtered <- data_raw %>% 
+  select('statecode',
+         'countycode',
+         'fipscode',
+         'state',
+         'county',
+         'v009_rawvalue',
+         'v133_rawvalue',
+         'v070_rawvalue',
+         'v132_rawvalue',
+         'v049_rawvalue',
+         'v085_rawvalue',
+         'v004_rawvalue',
+         'v088_rawvalue',
+         'v062_rawvalue',
+         'v168_rawvalue',
+         'v069_rawvalue',
+         'v023_rawvalue',
+         'v024_rawvalue',
+         'v044_rawvalue',
+         'v082_rawvalue',
+         'v140_rawvalue',
+         'v043_rawvalue',
+         'v125_rawvalue',
+         'v124_rawvalue',
+         'v136_rawvalue',
+         'v067_rawvalue',
+         'v137_rawvalue',
+         'v139_rawvalue',
+         'v083_rawvalue',
+         'v143_rawvalue',
+         'v003_rawvalue',
+         'v122_rawvalue',
+         'v131_rawvalue',
+         'v021_rawvalue',
+         'v149_rawvalue',
+         'v159_rawvalue',
+         'v160_rawvalue',
+         'v167_rawvalue',
+         'v169_rawvalue',
+         'v151_rawvalue',
+         'v063_rawvalue',
+         'v065_rawvalue',
+         'v141_rawvalue',
+         'v142_rawvalue',
+         'v171_rawvalue',
+         'v172_rawvalue',
+         'v161_rawvalue',
+         'v148_rawvalue',
+         'v158_rawvalue',
+         'v156_rawvalue',
+         'v153_rawvalue',
+         'v154_rawvalue',
+         'v166_rawvalue',
+         'v051_rawvalue',
+         'v052_rawvalue',
+         'v053_rawvalue',
+         'v054_rawvalue',
+         'v054_rawvalue',
+         'v081_rawvalue',
+         'v080_rawvalue',
+         'v056_rawvalue',
+         'v126_rawvalue',
+         'v059_rawvalue',
+         'v057_rawvalue',
+         'v058_rawvalue'
+  )
+```
+
+Time to rename our variables.
+
+```{r}
+colnames(data_filtered)
+```
+
+
+```{r}
+data_processed <- data_filtered %>% 
+  rename('adult_smoking' = 'v009_rawvalue',
+         'food_environment_index' = 'v133_rawvalue',
+         'physical_inactivity' = 'v070_rawvalue',
+         'access_to_exercise' = 'v132_rawvalue',
+         'excessive_drinking' = 'v049_rawvalue',
+         'uninsured' = 'v085_rawvalue',
+         'primary_care_physicians' = 'v004_rawvalue',
+         'dentists' = 'v088_rawvalue',
+         'mental_health_providers' = 'v062_rawvalue',
+         'high_school_completion_rate' = 'v168_rawvalue',
+         'some_college' = 'v069_rawvalue',
+         'unemployment' = 'v023_rawvalue',
+         'income_inequality' = 'v044_rawvalue',
+         'single_parent_households' = 'v082_rawvalue',
+         'social_associations' = 'v140_rawvalue',
+         'violent_crime' = 'v043_rawvalue',
+         'air_pollution' = 'v125_rawvalue',
+         'drinking_water_violations' = 'v124_rawvalue',
+         'severe_housing_problems' = 'v136_rawvalue',
+         'long_commute_alone' = 'v137_rawvalue',
+         'food_insecurity' = 'v139_rawvalue',
+         'limited_access_healthy_food' = 'v083_rawvalue',
+         'insufficient_sleep' = 'v143_rawvalue',
+         'uninsured_adults' = 'v003_rawvalue',
+         'uninsured_children' = 'v122_rawvalue',
+         'other_primary_care_providers' = 'v131_rawvalue',
+         'high_school_graduation' = 'v021_rawvalue',
+         'disconnected_youth' = 'v149_rawvalue',
+         'school_segregation' = 'v167_rawvalue',
+         'school_funding_adequacy' = 'v169_rawvalue',
+         'gender_pay_gap' = 'v151_rawvalue',
+         'free_reduced_lunch_eligible' = 'v065_rawvalue',
+         'black_white_residential_segregation' = 'v141_rawvalue',
+         'nonwhite_white_residential_segregation' = 'v142_rawvalue',
+         'childcare_cost_burden' = 'v171_rawvalue',
+         'childcare_centers' = 'v172_rawvalue',
+         'juvenile_arrests' = 'v158_rawvalue',
+         'traffic_volume' = 'v156_rawvalue',
+         'homeownership_rate' = 'v153_rawvalue',
+         'severe_housing_cost_burden' = 'v154_rawvalue',
+         'broadband_access' = 'v166_rawvalue',
+         'population' = 'v051_rawvalue',
+         'below_18' = 'v052_rawvalue',
+         '65_and_over' = 'v053_rawvalue',
+         'black_pop' = 'v054_rawvalue',
+         'asian_pop' = 'v081_rawvalue',
+         'pacific_islander_pop' = 'v080_rawvalue',
+         'hispanic_pop' = 'v056_rawvalue',
+         'white_pop' = 'v126_rawvalue',
+         'not_english_proficient' = 'v059_rawvalue',
+         'female_pop' = 'v057_rawvalue',
+         'percent_rural' = 'v058_rawvalue',
+         'children_poverty' = 'v024_rawvalue',
+         'median_income' = 'v063_rawvalue',
+         'driving_alone' = 'v067_rawvalue',
+         'firearm_fatalities' = 'v148_rawvalue',
+         'reading_scores' = 'v159_rawvalue',
+         'math_scores' = 'v160_rawvalue',
+         'suicides' = 'v161_rawvalue'
+         )
+```
+
+
+```{r}
+data_final <- data_processed %>% 
+  select(statecode, countycode, fipscode, state, county, food_environment_index,
+         access_to_exercise, uninsured, primary_care_physicians, mental_health_providers,
+         high_school_completion_rate, unemployment, income_inequality, social_associations,
+         air_pollution, drinking_water_violations, severe_housing_problems, food_insecurity,
+         school_segregation, school_funding_adequacy, gender_pay_gap,
+         nonwhite_white_residential_segregation, 
+         childcare_cost_burden, homeownership_rate, broadband_access, population,
+         below_18, `65_and_over`, white_pop, female_pop, percent_rural,
+         children_poverty, median_income, firearm_fatalities, suicides) %>% 
+  filter(!(countycode == '000'))
+write_csv(data_final,
+          'data/processed_county_suicide_data1.csv')
+```
+
+
+
+
+
+

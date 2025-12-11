@@ -1,0 +1,355 @@
+---
+title: "An Analysis of Factors Affecting County-Level Suicide Rates"
+author: "Jenna Gorham"
+output: pdf_document
+header-includes:
+   - \setlength\parindent{24pt}
+   - \usepackage{indentfirst}
+   - \usepackage{setspace}\doublespacing
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(tidyverse)
+library(cowplot)
+suicides_w_keys <- read_csv('data/processed_county_suicide_data1.csv')
+suicides <- suicides_w_keys %>% 
+  select(-statecode, -countycode, -fipscode, -state, -county)
+```
+
+## Introduction and Methods
+
+Suicide is a significant public health concern. In the United States, suicide is the 12th leading cause of death with an age-adjusted suicide rate of 13.48 per 100,000 individuals (https://afsp.org/suicide-statistics/). However, suicide is also known to be preventable. Suicide rates vary across U.S. counties, and so using statistical analysis and the tools of linear regression, county-level suicide rates can be modeled as a function of various socioeconomic and demographic characteristics of those counties. This analysis can help generate insight into those factors that are most predictive of high suicide rates with the goal of improving policy for suicide prevention.
+
+The data from this project is from County Health Rankings and Roadmaps (CHR&R), a program of the University of Wisconsin Population Health Institute (https://www.countyhealthrankings.org/). CHR&R collects data from a variety of original sources to create a dataset summarizing information on healthcare outcomes, socioeconomic factors, and demographic factors in every U.S. county. For this project, we utilize the 2023 dataset, focusing on the variables of age-adjusted suicide rates and relevant socioeconomic and demographic factors that may be of interest to researchers and policymakers. In total, this gives us 30 variables for analysis, one response variable and 29 predictors. 
+
+## Analysis
+
+We begin with data visualization. First, we wish to get a sense of the distribution of suicide rates across counties. The two visualizations that are most helpful for us in this regard are a histogram and a boxplot (see Appendix A).
+
+We see a heavily right-skewed distribution with several outlier counties in which suicide rates were exceptionally high. The presence of these unusual points may negatively impact linear models fit to the data.
+
+Next, we turn towards exploring the effect of individual predictors on the suicide rates. Unfortunately, with 29 predictors, visualizing the effect of each predictor is not practical. We achieve this exploration through summary statistics and data analysis. For each predictor, we first scale the predictor for ease of comparison. Next, we compute its correlation with suicide rate. Then we fit a simple linear regression model using the scaled predictor to model suicide rate, and we record the slope coefficient and $p$-value associated with the predictor. We also record the $R^2$ statistic from the linear model. These statistics allow us to determine the strength and nature of the relationship between the predictors. These values are summarized in a table below, sorted by ascending $p$-value, such that those predictors that result in statistically significant slope coefficients are listed above those that do not. (See Appendix B for the table.)
+
+This analysis immediately gives us some idea of which predictors might be important in modeling suicide rates. The number of firearm fatalities in a county is highly predictive of suicide rates. Some other significant predictors include how rural a country is, measures of poverty, and demographic features. Some insignificant predictors include income inequality and the number of mental health providers in a county.
+
+## Linear Models
+
+Having seen that certain predictors are likely not useful in predicting suicide rates, fitting a full multiple linear regression model is likely a naive approach. Instead, we use a criterion model selection algorithm based on the AIC (Akaike information criterion) criterion, iterating through all possible linear models that can be fit from the 29 predictors and selecting the model that results in the lowest AIC. (See Appendix C for implementation and linear model summary). 
+
+
+The resultant linear model is given below:
+
+\singlespacing
+
+$$
+\begin{aligned}
+  \widehat{suicides} = \text{ } &23.79 - 1.048(food\_environment\_index) + 1.427(access\_to\_exercise) \\
+  &+ 19.23(uninsured) + 272.0(mental\_health\_providers) \\
+  &+ 19.98(high\_school\_completion\_rate) - 0.3933(income\_inequality) \\
+  &- 0.1082(social\_associations) - 0.2451(air\_pollution) \\
+  &+ 16.63(severe\_housing\_problems)+ (2.229 \times 10^{-4})(school\_funding\_adequacy) \\
+  &- 0.04707(nonwhite\_white\_residential\_segregation) \\
+  &- 7.274(broadband\_access) + 52.98(below\_18) + 39.81(65\_and\_over) \\
+  &+ 8.723(white\_pop) - 75.47(female\_pop) - 18.25(children\_poverty) \\
+  &- (4.569 \times 10^{-5})(median\_income) + 0.5806(firearm\_fatalities).
+\end{aligned}
+$$
+
+\doublespacing
+
+Note that this model shows some unexpected results; for example, it predicts that as the number of mental health providers in a county increases, the suicide rate increases. This is interesting, so we investigate it further by visualizing the relationship between mental health providers and suicides in a scatterplot (see Appendix D). There does not appear to be any real relationship between the two variables, as our initial data exploration suggested, but there are some extreme outliers in the data.
+
+Now we turn to investigating the quality of fit. To do so, we use two tools: a QQ-plot and a plot of the residual versus the fitted values of the model. (See Appendix E for both plots.) We see several immediate issues. The errors do not appear to be normally distributed, with the QQ plot indicating a heavy-tailed distribution. The plot of fitted and residual values indicates non-constant variance and the presence of multiple outliers. 
+
+
+
+
+
+
+
+To attempt to fit a better model, we will apply some transformation methods. Because our issues with the original model include both non-normality and non-constant variance, we should likely need to transform both the response (suicide rate) and some predictor variables. Since we observed a "megaphone"-like shape in the residual vs. fit plot, we will initially chose the square root transformation for the response. To determine the transformations, if any, we should perform on the predictors, we individually visualize the square root of suicides as a function of each predictors, and if the relationship appears nonlinear, we choose the transformation that results in the best linear relationship between predictor and response. (For the sake of space, this process has been omitted from the appendixes.) We determine that we should take the following transformations: the log of uninsured, primary care physicians, mental health providers, unemployment, social associations, population, and median income. More precisely, for each of these predicors, we perform the transformation $log(x + 1)$ to avoid an error when taking the log of zero. 
+
+Given these transformations, we fit a full linear model including all terms and then proceed to use the AIC criterion selection algorithm as before to determine the best subset of the terms to include in the model (see Appendix F). The resultant model is given below: 
+
+\singlespacing
+
+$$
+\begin{aligned}
+\sqrt{\widehat{suicides}} =& \text{ } 9.297 -0.1129(food\_environment\_index) + 0.1388(access\_to\_exercise) \\
+&+ 2.849 \log{(uninsured + 1)} + 31.91 \log{(mental\_health\_providers + 1)} \\
+&+ 2.225(high\_school\_completion\_rate) -0.06188(income\_inequality) \\
+&- 0.1314\log{(social\_associations + 1)} - 0.01710(air\_pollution) \\
+&+ 0.03656(drinking\_water\_violations) + 1.530(severe\_housing\_problems) \\
+&+ (1.925 \times 10^{-5})(school\_funding\_adequacy) \\
+&- (3.575 \times 10^{-3})(nonwhite\_white\_residential\_segregation) \\
+&- 0.4166(broadband\_access) - 0.04577 \log{(population + 1)} \\
+&+ 5.020(below\_18) + 3.771(65\_and\_over) + 1.061(white\_pop) \\
+&- 7.538(female\_pop) - 0.02215(children\_poverty) \\
+&-0.4170\log{(median\_income + 1) + 0.06066(firearm\_fatalities)}.
+\end{aligned}
+$$
+
+\doublespacing
+
+Similar to our first model, this model includes unintuitive results that seem to differ from what we see in scatterplots of the data. Perhaps this phenomenon is a result of influential points and outliers. Perhaps if outliers were removed, there would be fewer terms in the model as well for this reason. This might improve our ability to make inferences about factors that contribute to higher suicide rates. 
+
+As before, we investigate the quality of fit with a QQ-plot and a plot of the residuals versus the fitted values (see Appendix G). The QQ-plot looks much closer to a normal distribution than the QQ-plot for the original linear model. The residual versus fitted plot indicates that there is still some concern for non-constant variance. One additional metric we can use to compare this model to the original model is the adjusted $R^2$ values associated with each model. The first linear model has an adjusted $R^2$ of 0.6397, and the transformed model has an adjusted $R^2$ of 0.6492. These values are comparable, so we did not lose explanatory power by transforming our variables. In fact, adjusted $R^2$ is higher for the transformed model, perhaps indicating that our transformations allowed for a better linear fit between the predictors and response.
+
+This model appears to be an improvement, but it still has some issues. Perhaps a different choice of transformation would result in a better fitting model, or perhaps removing the most extreme of unusual point would help. Alternatively, it is possible that we would obtain a better model by using a different model selection algorithm. Further exploration and trial-and-error would be necessary here to determine how to obtain the best possible model. 
+
+
+
+## Discussion and Conclusion
+
+Initial data exploration showed that individually, some variables are better at predicting suicide rates than others. We began by constructing a naive linear model and selected a subset of predictors that minimized AIC. This model did not perform well with poor diagnostics. Transforming the response variable and some of the predictors resulted in a linear model with the same explanatory power and better diagnostics. Further improvements could be made by trying different transformation methods, removing outliers, trying a more flexible model like quadratic regression, or implementing weighted least squares to address the issue of non-constant variance. These models could be further evaluated by using cross-validation to split the data into training and testing sets to determine how the models perform in terms of making predictions.  
+
+Certain variables were consistently seen to be strongly predictive of high suicide rates. For example, both initial data exploration and both linear models showed firearm fatalities to be positively associated with suicides. This may indicate that third variable is a cause of both firearm fatalities and high suicide rates - namely, easy access to firearms. So perhaps an area wishing to prevent deaths by suicides might be interested in restricting access to firearms or other lethal weapons. Certain demographic factors also appear significant in predicting suicides; for example, a larger elderly population is associated with higher suicide rates and a larger female population is associated with lower suicide rates. This is likely reflective of the demographics of individuals more likely to die by suicide. 
+
+Not all predictors were so clear cut. Notably, we discussed the impact of the number of mental health providers on suicide rates. Initial data exploration indicated no predictive relationship, and a scatterplot of the two variables appears to corroborate this, but in both linear models, an increase in mental health providers is predicted to increase the number of suicides in a county. This also runs counter to both intuition and prior knowledge. Further study is required to determine the true nature of this relationship in the data. It is possible that this term appears in the models due to the impact of extreme observations when no such relationship truely resists. Alternatively, it is possible that the term appears as a result of an interaction between mental health providers and some other variable.
+
+
+
+
+\pagebreak
+\singlespacing
+
+## Appendix A: Data Visualization and R Code
+
+
+```{r viz1, message=FALSE, warning=FALSE, fig.align='left'}
+p1 <- suicides %>% 
+  ggplot(aes(x = suicides)) +
+  geom_histogram() +
+  theme_bw()
+
+p2 <- suicides %>% 
+  ggplot(aes(y = suicides)) +
+  geom_boxplot() + 
+  theme_bw()
+
+p3 <- plot_grid(p1, p2)
+
+title_theme <- calc_element("plot.title", theme_bw())
+
+title_obj <- ggdraw() + 
+  draw_label(
+    "Distribution of County-Level Suicide Rates",
+    fontfamily = title_theme$family,
+    fontface = title_theme$face,
+    size = title_theme$size,
+    hjust = 0,
+    x = 0.05
+  )
+
+plot_grid(title_obj, p3, nrow = 2, ncol = 1, rel_heights = c(0.15, 1))
+```
+
+\pagebreak
+
+## Appendix B: Data Exploration Table and R Code
+
+```{r create table, results='asis'}
+# get list of the names of all predictors in the dataset
+predictors <- colnames(suicides)
+predictors <- predictors[!(predictors == 'suicides')]
+
+r2 <- correlation <- coefficient <- pval <- numeric(length(predictors))
+
+for (i in 1:length(predictors)) {
+  varname <- predictors[i]  # get the name of the predictor we are working with
+  varcol <- as.vector(unname(suicides[varname]))[[1]]  # get column for that var
+  
+  # next, we scale varcol
+  mean_varcol <- mean(varcol, na.rm = TRUE)
+  sd_varcol <- sd(varcol, na.rm = TRUE)
+  varcol_scaled = ifelse(is.na(varcol), varcol, (varcol - mean_varcol) / sd_varcol)
+  # where varcol is NA, we keep it as NA
+  # where varcol has a numeric value, we scale it (convert to z-score)
+  
+  # next, we create a dataframe with our relevant variables
+  df <- data.frame(x = as.vector(varcol_scaled), y = suicides$suicides)
+  # now we can fit our simple linear model
+  linmod <- lm(y ~ ., data = df)
+  # we get the data we wanted from the summary
+  pval[i] <- summary(linmod)$coefficients[2, 4]
+  coefficient[i] <- summary(linmod)$coefficients[2, 1]
+  r2[i] <- summary(linmod)$r.squared
+  
+  # now, we compute the correlation
+  correlation[i] <- cor(na.omit(df)$x, na.omit(df)$y)
+}
+
+# summarize our results
+results <- data.frame(Predictor = predictors,
+                      Correlation = correlation,
+                      Coefficient = coefficient,
+                      pvalue = pval,
+                      Rsquared = r2) %>% 
+  arrange(pvalue)
+kable(results)
+```
+
+\pagebreak
+
+
+## Appendix C: Linear Model Selection
+
+```{r}
+library(bestglm)
+# the data needs to be formatted very specifically here
+suicides2 <- suicides
+names(suicides2)[30] <- 'y'
+suicides2 <- as.data.frame(suicides2)
+bestglm(na.omit(suicides2), IC = 'AIC')$Subsets
+```
+
+```{r}
+linmod <- lm(suicides ~ food_environment_index + access_to_exercise + uninsured
+             + mental_health_providers + high_school_completion_rate + income_inequality
+             + social_associations + air_pollution + severe_housing_problems
+             + school_funding_adequacy + nonwhite_white_residential_segregation
+             + broadband_access + below_18 + `65_and_over` + white_pop + female_pop
+             + children_poverty + median_income + firearm_fatalities, data = suicides)
+summary(linmod)
+```
+
+
+
+
+\pagebreak
+
+## Appendix D: Scatterplot of Suicides vs. Mental Health Providers
+
+```{r,  fig.align='left'}
+suicides %>% 
+  ggplot(aes(x = mental_health_providers,
+             y = suicides)) +
+  geom_point() +
+  theme_bw() +
+  labs(title = 'Suicide Rate vs. Mental Health Providers in U.S. Counties',
+       x = 'ratio of population to mental health providers',
+       y = 'age adjusted suicide rate')
+```
+
+
+
+
+
+
+
+\pagebreak
+
+## Appendix E: Linear Model Diagnostics
+
+```{r,  fig.align='left'}
+qqnorm(resid(linmod))
+qqline(resid(linmod))
+```
+
+```{r,  fig.align='left'}
+ggplot(mapping = aes(x = fitted(linmod),
+                     y = resid(linmod))) +
+  geom_point() +
+  theme_bw() +
+  labs(title = 'Residuals vs. Fitted Plot',
+       x = '',
+       y = '')
+```
+
+
+
+
+
+\pagebreak
+
+## Appendix F: Transformed Linear Model Selection
+
+```{r}
+# we create a new data frame for the transformed data
+suicides_transformed <- suicides
+# transform column then rename it
+suicides_transformed$suicides <- sqrt(suicides_transformed$suicides)
+suicides_transformed <- suicides_transformed %>% 
+  rename('sqrt_suicides' = 'suicides')
+# do the same for the 7 predictors we are transforming
+# uninsured
+suicides_transformed$uninsured <- log(suicides_transformed$uninsured + 1)
+suicides_transformed <- suicides_transformed %>% 
+  rename('log_uninsured' = 'uninsured')
+# primary care physicians
+suicides_transformed$primary_care_physicians <- log(suicides_transformed$primary_care_physicians + 1)
+suicides_transformed <- suicides_transformed %>% 
+  rename('log_primary_care_physicians' = 'primary_care_physicians')
+# mental health providers
+suicides_transformed$mental_health_providers <- log(suicides_transformed$mental_health_providers + 1)
+suicides_transformed <- suicides_transformed %>% 
+  rename('log_mental_health_providers' = 'mental_health_providers')
+# unemployment
+suicides_transformed$unemployment <- log(suicides_transformed$unemployment + 1)
+suicides_transformed <- suicides_transformed %>% 
+  rename('log_unemployment' = 'unemployment')
+# social associations
+suicides_transformed$social_associations <- log(suicides_transformed$social_associations + 1)
+suicides_transformed <- suicides_transformed %>% 
+  rename('log_social_associations' = 'social_associations')
+# population
+suicides_transformed$population <- log(suicides_transformed$population + 1)
+suicides_transformed <- suicides_transformed %>% 
+  rename('log_population' = 'population')
+# median income
+suicides_transformed$median_income <- log(suicides_transformed$median_income + 1)
+suicides_transformed <- suicides_transformed %>% 
+  rename('log_median_income' = 'median_income')
+
+# perform model selection
+names(suicides_transformed)[30] <- 'y'
+suicides_transformed <- as.data.frame(suicides_transformed)
+bestglm(na.omit(suicides_transformed), IC = 'AIC')$Subsets
+```
+
+```{r}
+linmod_transformed <- lm(y ~ food_environment_index + access_to_exercise + log_uninsured +
+                         log_mental_health_providers + high_school_completion_rate +
+                         income_inequality + log_social_associations + air_pollution +
+                         drinking_water_violations + severe_housing_problems +
+                         school_funding_adequacy + nonwhite_white_residential_segregation +
+                         broadband_access + log_population + below_18 + `65_and_over` + white_pop +
+                         female_pop + children_poverty + log_median_income + firearm_fatalities,
+                         data = suicides_transformed)
+summary(linmod_transformed)
+```
+
+
+
+
+
+
+
+
+\pagebreak
+
+## Appendix G: Transformed Linear Model Diagnostics
+
+```{r,  fig.align='left'}
+qqnorm(resid(linmod_transformed))
+qqline(resid(linmod_transformed))
+```
+
+```{r,  fig.align='left'}
+ggplot(mapping = aes(x = fitted(linmod_transformed),
+                     y = resid(linmod_transformed))) +
+  geom_point() +
+  theme_bw() +
+  labs(title = 'Residuals vs. Fitted Plot',
+       x = '',
+       y = '')
+```
+
+
+
+
+
+
+
